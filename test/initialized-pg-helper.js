@@ -4,6 +4,7 @@
 
 var pgHelper = require('../../pg-cli');
 
+//set the suitable conf for your
 var conf = {
   user: 'financeuser',
   //user: 'postgres',

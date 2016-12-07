@@ -6,6 +6,6 @@
 //writing 2:
 var pgHelper = require('./initialized-pg-helper');
 
-pgHelper.query('select * from "YearBudget"', [], function(err, reply){
+pgHelper.query('select * from "User"', [], function(err, reply){
   console.log(err, reply);
 });
