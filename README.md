@@ -107,24 +107,35 @@ pgHelper.remove('User', {id:1}, (err, reply)=>{
 * 然后从这些class为15的数据集里挑出score>80的数据,插入到Log表里
 
 ```
-//开始构建事务操作的一组操作对象
-var selectUser = {'$select':{table:'User', filter:{id:1}, key:'selectUser'}};
-var removeScore19 = {'$remove':{table:'Score', filter:{class:19}, key:'removeScore19'}};
-var addOneUser = {'$insert':{table:'User', toInsert:{name:'admin',age:22,class:19,addr:'BeiJing'}, key:'addOneUser'}};
-var selectScore15 = {'$select':{table:'Score', filter:{class:19}, key:'selectScore15'}};
-var toLog = {'$insertBatch':{table:'Log', toInsertBatch:[], key:'toLog', preHandler: (selfOP, results, OPMap)=>{
-    //selfOP指向当前这个操作对象自己: {table:'Log', toInsertBatch:[], key:'toLog' ......}
-    //results收集前面已经执行好的结果: {selectUser: <result>, removeScore19:<result>, addOneUser:<result>, selectScore15:<result>}
-    //OPMap是前面所有的操作对象map: {selectUser: <operation body for selectUser>, removeScore19:<operation body for removeScore19>, ......}
-    var selectScore15Ret = results.selectScore15.rows;
-    selfOP.toInsertBatch = selectScore15Ret;
-}}};
+//开始构建事务操作的一组操作对象,关于构建操作对象可参考api说明
+//包括了: $select,$update,$insert,$remove,$insertBatch,$rawSql
+var selectUser = {'$select': {table: 'User', filter: {id: 1}, key: 'selectUser'}};
+var removeScore19 = {'$remove': {table: 'Score', filter: {class: 19}, key: 'removeScore19'}};
+var addOneUser = {
+  '$insert': {
+    table: 'User',
+    toInsert: {name: 'admin', age: 22, class: 19, addr: 'BeiJing'},
+    key: 'addOneUser'
+  }
+};
+var selectScore15 = {'$select': {table: 'Score', filter: {class: 19}, key: 'selectScore15'}};
+var toLog = {
+  '$insertBatch': {
+    table: 'Log', toInsertBatch: [], key: 'toLog', preHandler: (selfOP, results, OPMap)=> {
+      //selfOP指向当前这个操作对象自己: {table:'Log', toInsertBatch:[], key:'toLog' ......}
+      //results收集前面已经执行好的结果: {selectUser: <result>, removeScore19:<result>, addOneUser:<result>, selectScore15:<result>}
+      //OPMap是前面所有的操作对象map: {selectUser: <operation body for selectUser>, removeScore19:<operation body for removeScore19>, ......}
+      var selectScore15Ret = results.selectScore15.rows;
+      selfOP.toInsertBatch = selectScore15Ret;
+    }
+  }
+};
 
 var operationArr = [selectUser, removeScore19, addOneUser, selectScore15, toLog];
 //queryWithTransaction会按序执行这些操作对象,中间任何一个失败,事务都会回滚
-pgHelper.queryWithTransaction(operationArr, (err, results)=>{
-    //results收集的是所有已执行好的结果: {selectUser: <result>, removeScore19:<result>, addOneUser:<result>, selectScore15:<result>, toLog:<toLog>}
-    //your code here
+pgHelper.queryWithTransaction(operationArr, (err, results)=> {
+  //results收集的是所有已执行好的结果: {selectUser: <result>, removeScore19:<result>, addOneUser:<result>, selectScore15:<result>, toLog:<toLog>}
+  //your code here
 });
 ```
 
