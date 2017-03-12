@@ -4,7 +4,7 @@ a small but quite useful lib for postgres
 
 # 按照自己给定的配置初始化一个postgres客户端助手
 ```
-var pgHelper = require('pg-cli').pgHelper;
+var pgHelper = require('pg-cli');
 var pgConf = {
       user: 'postgres',
       database: 'test',
@@ -62,6 +62,13 @@ pgHelper.select('User', {name:{'$ne':'admin'}}, [], (err, reply)=>{
 });
 ```
 
+* 在User表里查询age>=13 且 <=19，和性别为男 数据集
+```
+pgHelper.select('User', {age:{'$gte':13,'$lte':19},sex:'male'}, [], (err, reply)=>{
+    //your code here
+});
+```
+
 ## 各种$操作符映射的sql操作符{'$gte': '>=', '$gt': '>', '$eq': '=', '$lte': '<=', '$lt': '<', '$ne': '!=', '$in': 'in', '$like': 'like'}
 
 
@@ -88,6 +95,28 @@ pgHelper.insertBatch('User', toInsertBatch, (err, reply)=>{
 pgHelper.update('User', {id:1}, {age:100}, (err, reply)=>{
     //your code here
 });
+```
+
+# 批量更新操作
+* 更新User表中id为5，6，7的3行数据，where子句中匹配的属性为id，更新完毕后返回这些被更新行的'id','name','age','email'数据
+```
+pgHelper.updateBatch('User', [{id:4,age:12},{id:5,age:18},{id:6,age:19,name:'nick'}], 'id', ['id','name','age','email'], (err, reply)=>{
+    //your code here
+});
+//生成的sql形如:
+update "User" set 
+"age" = case id when 4 then 12 when 5 then 18 when 6 then 19 end, 
+"name" = case id when 6 then 'nick' end 
+where "id" in(4,5,6) returning "id", "name", "age", "email"
+```
+* 把所有grade为2的数据的age更新为15，把所有grade为3的数据的age更新为19，更新完毕后返回这些被更新行的'id','name','age','email'数据
+```
+pgHelper.updateBatch('User', [{grade:2,age:15},{grade:3,age:19}], 'grade', ['id','name','age','email'], (err, reply)=>{
+    //your code here
+});
+//生成的sql形如:
+update "User" set "age" = case grade when 2 then 15 when 3 then 19 end where "grade" in(2,3) 
+returning "id", "name", "age", "email"
 ```
 
 # 删除操作
@@ -138,6 +167,21 @@ pgHelper.queryWithTransaction(operationArr, (err, results)=> {
   //your code here
 });
 ```
+
+# 如果使用co，可以直接使用thunk风格的函数，假定这里pgHelper已经初始化过了
+```
+//把grade为2的所有用户age改为18
+var co = require('co');
+var thunk = pgHelper.thunk;
+co(function *(){
+    var users = (yield thunk.select('User',{grade:2},['id'])).rows;
+    users.forEach(val=>val.age=18);
+    yield thunk.updateBatch('User',users,'id');
+    var users = (yield thunk.select('User',{grade:2},['id','age'])).rows;
+    console.log(users);
+});
+```
+
 
 
 

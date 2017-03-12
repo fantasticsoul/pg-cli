@@ -1,6 +1,6 @@
 {
   "name": "pg-cli",
-  "version": "1.0.1",
+  "version": "1.0.5",
   "description": "a small lib for postgres client",
   "main": "index.js",
   "scripts": {
