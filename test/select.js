@@ -7,5 +7,9 @@
 var pgHelper = require('./initialized-pg-helper');
 
 pgHelper.query('select * from "User"', [], function(err, reply){
-  console.log(err, reply);
+  console.log(err, reply.rows);
+});
+
+pgHelper.select('User',[],{id:1},(err, reply)=>{
+  console.log(err, reply.rows);
 });

@@ -30,41 +30,41 @@ pgHelper.query('select * from "User" where "name"=$1', ['admin'], (err, reply)=>
 # 简单的select查询
 * 在User表里查询name等于admin的数据集
 ```
-pgHelper.select('User', {name:'admin'}, [], (err, reply)=>{
+pgHelper.select('User', [], {name:'admin'},(err, reply)=>{
     //your code here
 });
-pgHelper.select('User', {name:{'$eq':'admin'}}, [], (err, reply)=>{
+pgHelper.select('User', [], {name:{'$eq':'admin'}}, (err, reply)=>{
     //your code here
 });
 ```
 
 * 在User表里查询name等于admin的数据集,返回的数据里只包含name,age,class 3个字段
 ```
-pgHelper.select('User', {name:{'$eq':'admin'}}, ['name','age','class'], (err, reply)=>{
+pgHelper.select('User', ['name','age','class'], {name:{'$eq':'admin'}},  (err, reply)=>{
     //your code here
 });
 ```
 
 * 在User表里查询name等于admin的数据集,并返回
 ```
-pgHelper.select('User', {name:'admin'}, [], (err, reply)=>{
+pgHelper.select('User', [], {name:'admin'}, (err, reply)=>{
     //your code here
 });
-pgHelper.select('User', {name:{'$eq':'admin'}}, [], (err, reply)=>{
+pgHelper.select('User', [], {name:{'$eq':'admin'}}, (err, reply)=>{
     //your code here
 });
 ```
 
 * 在User表里查询name不等于admin的数据集
 ```
-pgHelper.select('User', {name:{'$ne':'admin'}}, [], (err, reply)=>{
+pgHelper.select('User', [], {name:{'$ne':'admin'}}, (err, reply)=>{
     //your code here
 });
 ```
 
 * 在User表里查询age>=13 且 <=19，和性别为男 数据集
 ```
-pgHelper.select('User', {age:{'$gte':13,'$lte':19},sex:'male'}, [], (err, reply)=>{
+pgHelper.select('User', [], {age:{'$gte':13,'$lte':19},sex:'male'}, (err, reply)=>{
     //your code here
 });
 ```
@@ -76,7 +76,7 @@ pgHelper.select('User', {age:{'$gte':13,'$lte':19},sex:'male'}, [], (err, reply)
 * 向User表插入一条数据
 ```
 var toInsert = {name:'admin',age:22,class:19,addr:'BeiJing'};
-pgHelper.insert('User', toInsert, (err, reply)=>{
+pgHelper.insert('User', toInsert, [], (err, reply)=>{
     //your code here
 });
 ```
@@ -84,7 +84,7 @@ pgHelper.insert('User', toInsert, (err, reply)=>{
 * 向User表插入多条数据
 ```
 var toInsertBatch = [{name:'admin',age:22,class:19,addr:'BeiJing'},{name:'admin2',age:29,class:15,addr:'ShangHai'}];
-pgHelper.insertBatch('User', toInsertBatch, (err, reply)=>{
+pgHelper.insertBatch('User', toInsertBatch, [], (err, reply)=>{
     //your code here
 });
 ```
@@ -92,7 +92,7 @@ pgHelper.insertBatch('User', toInsertBatch, (err, reply)=>{
 # 更新操作
 * 更新User表中id为1的对象的age字段值为100
 ```
-pgHelper.update('User', {id:1}, {age:100}, (err, reply)=>{
+pgHelper.update('User', {age:100}, {id:1}, [], (err, reply)=>{
     //your code here
 });
 ```
@@ -118,6 +118,30 @@ pgHelper.updateBatch('User', [{grade:2,age:15},{grade:3,age:19}], 'grade', ['id'
 update "User" set "age" = case grade when 2 then 15 when 3 then 19 end where "grade" in(2,3) 
 returning "id", "name", "age", "email"
 ```
+* 跟新User表中id为1的行数据下的info字段，info为一个jsonb结构，{money:22,card:5,warehouse:{type:2,items:[{name:'sword',hp:200}]}},
+* 只更新type 2 为 3
+```
+var jsonbSet = pgHelper.jsonbSet;
+
+pgHelper.update('User', {info:jsonbSet([{path:['warehouse','type'],value:3}])}, {id:1}, [], (err, reply)=>{
+    //your code here
+});
+//生成的sql形如:
+update "User" set "info" = jsonb_set("info",'{"warehouse","type"}',3) where "id" = 1;
+```
+* 跟新User表中id为1的行数据下的info字段，info为一个jsonb结构，{money:22,card:5,warehouse:{type:2,items:[{name:'sword',hp:200}]}},
+* 更新type 2 为 3, 同时也更新 items[0]的name为sheild
+```
+var jsonbSet = pgHelper.jsonbSet;
+//和path value 平级的还有一个字段:createMissing,不传的话走pg默认的规则true
+var infoJsonb = jsonbSet([{path:['warehouse','type'],value:3},{path:['warehouse','items',0,'name'],value:'shield'}]);
+pgHelper.update('User', {info:infoJsonb}, {id:1}, [], (err, reply)=>{
+    //your code here
+});
+//生成的sql形如:
+update "User" set "info" = jsonb_set(jsonb_set("info",'{"warehouse","type"}',3),'{"warehouse","items",0,"name"}','shield') where "id" = 1;
+```
+* jsonb_set具体操作可参考官网
 
 # 删除操作
 * 删除User表中id为1的对象
