@@ -2,23 +2,27 @@
 a small but quite useful lib for postgres
 一个基于node-pg( npm install pg )封装的更易用的pg客户端库
 
-# 按照自己给定的配置初始化一个postgres客户端助手
+* 暴露callbakc api、thunk api、promise api，方便自行选择
+* 支持初始化多个数据库的连接池
+* 支持单数据库事务和多数据库事务
+
+## 按照自己给定的配置初始化一个postgres客户端助手
 ```
 var pgHelper = require('pg-cli');
 var pgConf = {
-      user: 'postgres',
-      database: 'test',
-      password: '123456',
-      host:'localhost',
-      port: 5432,
-      max: 10, // max number of clients in pool
-      min: 4,
-      idleTimeoutMillis: 30000 // how long a client is allowed to remain idle before being closed
+  user: 'postgres',
+  database: 'test',
+  password: '123456',
+  host:'localhost',
+  port: 5432,
+  max: 10, // max number of clients in pool
+  min: 4,
+  idleTimeoutMillis: 30000, // how long a client is allowed to remain idle before being closed
 }
 pgHelper.initPool(pgConf);
 ```
 
-# 执行原生sql语句
+## 执行原生sql语句
 ```
 pgHelper.query('select * from "User" where "name"=$1', ['admin'], (err, reply)=>{
     if(err) console.log(err);// err coming from pg
@@ -27,7 +31,7 @@ pgHelper.query('select * from "User" where "name"=$1', ['admin'], (err, reply)=>
 });
 ```
 
-# 简单的select查询
+## 简单的select查询
 * 在User表里查询name等于admin的数据集
 ```
 pgHelper.select('User', [], {name:'admin'},(err, reply)=>{
@@ -69,10 +73,10 @@ pgHelper.select('User', [], {age:{'$gte':13,'$lte':19},sex:'male'}, (err, reply)
 });
 ```
 
-## 各种$操作符映射的sql操作符{'$gte': '>=', '$gt': '>', '$eq': '=', '$lte': '<=', '$lt': '<', '$ne': '!=', '$in': 'in', '$like': 'like'}
+### 各种$操作符映射的sql操作符{'$gte': '>=', '$gt': '>', '$eq': '=', '$lte': '<=', '$lt': '<', '$ne': '!=', '$in': 'in', '$like': 'like'}
 
 
-# 插入操作
+## 插入操作
 * 向User表插入一条数据
 ```
 var toInsert = {name:'admin',age:22,class:19,addr:'BeiJing'};
@@ -89,7 +93,7 @@ pgHelper.insertBatch('User', toInsertBatch, [], (err, reply)=>{
 });
 ```
 
-# 更新操作
+## 更新操作
 * 更新User表中id为1的对象的age字段值为100
 ```
 pgHelper.update('User', {age:100}, {id:1}, [], (err, reply)=>{
@@ -97,7 +101,7 @@ pgHelper.update('User', {age:100}, {id:1}, [], (err, reply)=>{
 });
 ```
 
-# 批量更新操作
+## 批量更新操作
 * 更新User表中id为5，6，7的3行数据，where子句中匹配的属性为id，更新完毕后返回这些被更新行的'id','name','age','email'数据
 ```
 pgHelper.updateBatch('User', [{id:4,age:12},{id:5,age:18},{id:6,age:19,name:'nick'}], 'id', ['id','name','age','email'], (err, reply)=>{
@@ -143,7 +147,7 @@ update "User" set "info" = jsonb_set(jsonb_set("info",'{"warehouse","type"}',3),
 ```
 * jsonb_set具体操作可参考官网
 
-# 删除操作
+## 删除操作
 * 删除User表中id为1的对象
 ```
 pgHelper.remove('User', {id:1}, (err, reply)=>{
@@ -152,7 +156,7 @@ pgHelper.remove('User', {id:1}, (err, reply)=>{
 ```
 
 
-# 事务操作
+## 事务操作
 * 先删除User表里满足id为1的数据,
 * 然后删除Score表里满足class为19的数据,
 * 然后向User表里添加一条数据,
@@ -192,18 +196,48 @@ pgHelper.queryWithTransaction(operationArr, (err, results)=> {
 });
 ```
 
-# 如果使用co，可以直接使用thunk风格的函数，假定这里pgHelper已经初始化过了
+## 使用promise 或者 thunk，执行多数据事务提交
 ```
 //把grade为2的所有用户age改为18
-var co = require('co');
-var thunk = pgHelper.thunk;
-co(function *(){
-    var users = (yield thunk.select('User',{grade:2},['id'])).rows;
-    users.forEach(val=>val.age=18);
-    yield thunk.updateBatch('User',users,'id');
-    var users = (yield thunk.select('User',{grade:2},['id','age'])).rows;
-    console.log(users);
-});
+const { $apiPromise:ap } = require('pg-cli');
+var conf1 = {
+  user: 'financeuser',
+  password: 'financeuserpwd',
+  host:'localhost',
+  port: 5432,
+  database: 'zzk',
+  max: 10,
+  min: 4,
+  idleTimeoutMillis: 30000
+};
+var conf2 = {
+  user: 'financeuser',
+  password: 'financeuserpwd',
+  host:'localhost',
+  port: 5432,
+  database: 'game',
+  max: 10,
+  min: 4,
+  idleTimeoutMillis: 30000
+};
+ap.initPool(conf1);
+ap.initPool(conf2);
+
+async function main() {
+  const user1 = await hp.select(User, { filter: { id: 1 }, fields: ['id', 'balance'] });
+  const user2 = await hp.select(User, { filter: { id: 1 } });
+  const matrix = await hp.select(Matrix, { filter: { id: 1 }, db: 'game' });
+
+  await hp.startMultiDbTransaction(async function(clientMap){
+    const user = await hp.select(User, { client:clientMap.zzk, filter: { id: 1 }, fields: ['id', 'balance'] });
+    const matrix = await hp.select(Matrix, { client:clientMap.game, filter: { id: 1 } });
+    console.log(user, matrix);
+  });
+  console.log('end startMultiDbTransaction');
+}
+
+main().catch(err=>console.log(err));
+
 ```
 
 
